@@ -1,0 +1,27 @@
+{
+    "name": "application-compiler",
+    "version": "1.0.0",
+    "description": "A Simple Compiler To Merge Multiple Files Into A Single File Application.",
+    "main": "index.js",
+    "scripts": {
+      "test": "echo \"Error: no test specified\" && exit 1"
+    },
+    "repository": {
+      "type": "git",
+      "url": "git+https://github.com/kartikk221/application-compiler.git"
+    },
+    "keywords": [
+      "nodejs",
+      "application",
+      "compiler",
+      "single-file",
+      "include",
+      "require"
+    ],
+    "author": "kartikk221",
+    "license": "MIT",
+    "bugs": {
+      "url": "https://github.com/kartikk221/application-compiler/issues"
+    },
+    "homepage": "https://github.com/kartikk221/application-compiler#readme"
+}
