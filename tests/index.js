@@ -13,7 +13,4 @@ test_compiler.set_error_handler((path, error) => {
 test_compiler.write_to({
     path: './',
 });
-
-console.log(__filename);
-
 // FIX THE BUG WITH TWO SAME INCLUDE REFERENCES IN A SINGLE PAGE

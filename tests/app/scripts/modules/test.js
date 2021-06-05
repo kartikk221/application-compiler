@@ -3,7 +3,4 @@ let hello_world = 2;
 let hello = false;
 
 // This contains test.js stuff above
-
-setTimeout(() => {
-    SOME.random();
-}, 100);
+console.log('hi');

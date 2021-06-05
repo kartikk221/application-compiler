@@ -143,11 +143,11 @@ class NestedLiveFile {
 
                 // Update content and trigger reload event
                 let lines = ((content || '').match(/\n/g) || []).length + 3;
-                let start_comment = `//_ START_FILE | ${file_name} | ${path} | ${lines} Lines _//\n`;
-                let end_comment = `\n//_ END_FILE | ${file_name} | ${path} | ${lines} Lines _//`;
+                let start_comment = `//_ START_FILE | ${file_name} | ${path} | ${lines} LINES _//\n`;
+                let end_comment = `\n//_ END_FILE | ${file_name} | ${path} | ${lines} LINES _//`;
                 reference.#content = start_comment + content + end_comment;
 
-                // Recalibrate if specified by call
+                // Trigger chunk recalibration if specified by reload call parameter
                 if (recalibrate) reference._recalibrate();
             }
         );
@@ -212,6 +212,7 @@ class NestedLiveFile {
      */
     _get_included_files() {
         let files = {};
+        let paths = {};
 
         // Splits content into chunks based on "include(" prefix to detect possible calls
         let include_tag = this.#tags.inline_include;
@@ -255,6 +256,7 @@ class NestedLiveFile {
                             let spacing = left_content.length;
 
                             // Store references by line position to representing pointers
+                            paths[absolute_path] = true;
                             files[line_position] = {
                                 path: absolute_path,
                                 spacing: spacing,
@@ -275,7 +277,10 @@ class NestedLiveFile {
             if (left) line_offset += lines_count - 1;
         }
 
-        return files;
+        return {
+            files: files,
+            paths: paths,
+        };
     }
 
     /**
@@ -285,7 +290,9 @@ class NestedLiveFile {
     _recalibrate() {
         // Retrieve file inclusions
         let reference = this;
-        let included_files = this._get_included_files();
+        let nested_data = this._get_included_files();
+        let included_files = nested_data.files;
+        let included_paths = nested_data.paths;
 
         // Remove old file pointers and references
         let current_pointers = {};
@@ -305,8 +312,8 @@ class NestedLiveFile {
             if (!verdict) {
                 nested_file.pointers--;
 
-                // Destroy nested file if it has no dependent pointers
-                if (nested_file.pointers < 1) {
+                // Destroy nested file if it has no dependent pointers and the path is no longer included in nested data
+                if (nested_file.pointers < 1 && !included_paths[path]) {
                     nested_file.destroy();
                     delete reference.#file_store[path];
                 }
@@ -314,6 +321,7 @@ class NestedLiveFile {
 
             // Store current pointers in object faster referencing in next loop
             if (verdict) current_pointers[line_position] = path;
+
             return verdict;
         });
 

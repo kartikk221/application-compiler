@@ -1,3 +1,4 @@
+const Path = require('path');
 const FileSystem = require('fs');
 const NestedLiveFile = require('./NestedLiveFile.js');
 const WatcherPool = require('./WatcherPool.js');
@@ -6,7 +7,6 @@ const {
     path_to_chunks,
     chunks_to_path,
     repeat_character,
-    absolute_file_path,
 } = require('../shared/operators.js');
 
 class Compiler {
@@ -24,6 +24,7 @@ class Compiler {
         last_write: 0,
         write_delay: 250,
         pending: false,
+        relative_errors: true,
     };
 
     #methods = {
@@ -36,10 +37,10 @@ class Compiler {
         file_path,
         watcher_delay = 250,
         include_tag = 'include',
-        _proto_instance,
+        __proto_instance,
     }) {
         // Do not treat current instance as a compiler instance if it is a prototype instance
-        if (_proto_instance === true) return;
+        if (__proto_instance === true) return;
 
         // Verify and parse constructor options
         this._parse_options({
@@ -123,13 +124,28 @@ class Compiler {
     }
 
     /**
+     * Sets recalibration event handler for compiler instance.
+     *
+     * @param {Function} handler
+     */
+    on_recalibration(handler) {
+        if (typeof handler !== 'function')
+            throw new Error(
+                'on_recalibration(handler) -> handler must be a Function'
+            );
+
+        this.#methods.recalibrate = handler;
+    }
+
+    /**
      * This method is used to initiate the hot reload compiled file writing sequence.
      *
      * @param {String} options.path
      * @param {String} options.file_name
      * @param {Number} options.write_delay
+     * @param {Boolean} options.relative_errors
      */
-    write_to({ path, file_name, write_delay }) {
+    write_to({ path, file_name, write_delay, relative_errors }) {
         // Determine write_to path
         if (typeof path !== 'string')
             throw new Error(
@@ -147,6 +163,10 @@ class Compiler {
         // Set write_delay if it is a valid number type
         if (typeof write_delay == 'number')
             this.#write_to.write_delay = write_delay;
+
+        // Set relative_errors if it is a valid boolean type
+        if (typeof relative_errors == 'boolean')
+            this.#write_to.relative_errors = relative_errors;
     }
 
     /**
@@ -188,7 +208,7 @@ class Compiler {
                 },
                 (error, compiled) => {
                     const compiler = new Compiler({
-                        _proto_instance: true,
+                        __proto_instance: true,
                     });
 
                     // Log self read error
@@ -228,6 +248,11 @@ class Compiler {
         this.#watcher_pool.destroy();
     }
 
+    /**
+     * This method tests the syntax of the write_to file
+     *
+     * @returns {Promise} Promise -> Reject[String] OR Resolve[undefined]
+     */
     _test_syntax() {
         let reference = this;
         return new Promise((resolve, reject) => {
@@ -305,13 +330,40 @@ class Compiler {
      * INTERNAL METHOD!
      * Retrieves error line from error stack trace.
      *
-     * @param {String} error_string
+     * @param {String} str
      * @param {String} file_name
      * @returns {Number} Number OR undefined
      */
     _error_line(str, file_name) {
         if (str.indexOf(file_name + ':') > -1)
             return +str.split(file_name + ':')[1].split(':')[0];
+    }
+
+    /**
+     * INTERNAL METHOD!
+     * Parses boundary statement data from current line
+     *
+     * @param {String} string
+     * @returns {Object} Object
+     */
+    _boundary_statement(string) {
+        let prefixes = {
+            type_start: '//_ START_FILE | ',
+            type_end: '//_ END_FILE | ',
+            b_end: ' LINES _//',
+        };
+        let start_prefix = string.indexOf(prefixes.type_start) > -1;
+        let end_prefix = string.indexOf(prefixes.type_end) > -1;
+        let start_check = start_prefix || end_prefix;
+        let end_check = string.indexOf(prefixes.b_end) > -1;
+        if (start_check && end_check) {
+            if (start_prefix) {
+                string = 'START | ' + string.split(prefixes.type_start)[1];
+            } else {
+                string = 'END | ' + string.split(prefixes.type_end)[1];
+            }
+            return string.split(' | ');
+        }
     }
 
     /**
@@ -322,36 +374,51 @@ class Compiler {
      * @returns {Object} Object
      */
     _relative_file(line, chunks) {
-        let counter = line - 1;
-        let relative_cursor = 1;
-        let cursor = chunks[counter];
+        // Iterate line down by 1 due to array 0th position offset
+        line--;
+
+        // Initialize cursors and move count
         let result = null;
+        let move_count = 0;
+        let cursor_up = chunks[line];
+        let cursor_down = chunks[line];
 
-        // Iterate forward until we hit a end_file boundary or file end
-        while (cursor !== undefined && result == null) {
-            let boundary_start = cursor.indexOf('//_ END_FILE | ') > -1;
-            let boundary_end = cursor.indexOf(' Lines _//') > -1;
-
-            // Determine a proper end file boundary
-            if (boundary_start && boundary_end) {
-                let boundary_chunks = cursor.split(' | ');
-                let path = boundary_chunks[2];
-                let lines = +boundary_chunks[3].split(' ')[0];
-
-                // offset file length from boundary with total iterated lines to determine relative line
-                result = {
-                    path: path,
-                    lines: lines,
-                    relative_line: lines - relative_cursor,
-                };
+        while (result == null && (cursor_up || cursor_down)) {
+            // Check line from cursor_up if it exists
+            if (cursor_up) {
+                let boundary = this._boundary_statement(cursor_up);
+                if (boundary && boundary[0].indexOf('START') > -1) {
+                    let path = boundary[2];
+                    let total_lines = +boundary[3].split(' ')[0];
+                    result = {
+                        path: path,
+                        total_lines: total_lines,
+                        relative_line: move_count,
+                    };
+                }
             }
 
-            // Iterate counter/cursor at end of each iteration
-            relative_cursor++;
-            counter++;
-            cursor = chunks[counter];
+            // Check line from cursor_down if it exists
+            if (cursor_down) {
+                let boundary = this._boundary_statement(cursor_down);
+                if (boundary && boundary[0].indexOf('END') > -1) {
+                    let path = boundary[2];
+                    let total_lines = +boundary[3].split(' ')[0];
+                    result = {
+                        path: path,
+                        total_lines: total_lines,
+                        relative_line: total_lines - move_count - 1,
+                    };
+                }
+            }
+
+            // Traverse cursors in both directions while keeping count of movement
+            move_count++;
+            cursor_up = chunks[line - move_count];
+            cursor_down = chunks[line + move_count];
         }
 
+        // result.path && result.relative_line && result.total_lines
         if (result !== null) return result;
     }
 
@@ -378,7 +445,7 @@ class Compiler {
             if (error_line) {
                 current = current.split(' ');
 
-                // Attempt to only overwrite chunk with path and preserve as much content in focus line as possible
+                // Attempt to only overwrite chunk with path and preserve as much content in current line as possible
                 for (let cx = 0; cx < current.length; cx++) {
                     let cx_current = current[cx];
                     let error_line = reference._error_line(
@@ -394,7 +461,9 @@ class Compiler {
 
                         if (relative_file) {
                             // Replace current trace with absolute relativized trace
-                            let absolute_trace = `${relative_file.path}:${relative_file.relative_line}`;
+                            let absolute_trace = `[${Path.resolve(
+                                relative_file.path
+                            )}:${relative_file.relative_line}]`;
                             current[cx] = absolute_trace;
                         }
                     }
@@ -407,12 +476,31 @@ class Compiler {
         return error_chunks.join('\n');
     }
 
+    _write_file(path, content) {
+        return new Promise((resolve, reject) => {
+            FileSystem.writeFile(
+                path,
+                content,
+                {
+                    encoding: 'utf8',
+                },
+                (error) => {
+                    if (error) {
+                        reject(error);
+                    } else {
+                        resolve();
+                    }
+                }
+            );
+        });
+    }
+
     /**
      * INTERNAL METHOD!
      * Triggers compiled file writing sequence based on write_to settings.
      *
      */
-    _perform_write() {
+    async _perform_write() {
         // Spread write_to configuration
         const {
             file_name,
@@ -421,6 +509,7 @@ class Compiler {
             write_delay,
             pending,
             initial_write,
+            relative_errors,
         } = this.#write_to;
 
         // Check for sufficient delay between last write
@@ -446,19 +535,22 @@ class Compiler {
         // Do not perform write on first recalibration as nested file discovery has not finished yet
         if (!initial_write) return (this.#write_to.initial_write = true);
 
+        // Generate compiled content and write to specified file name
         let compiled_content = this.compiled;
-        this.#methods.logger(`WROTE_TO -> ${path}${file_name}`);
-        FileSystem.writeFile(
-            path + file_name,
-            compiled_content,
-            {
-                encoding: 'utf8',
-            },
-            async (error) => {
-                // Log write error through user handler
-                if (error) this.#methods.error(path, error);
 
-                // Perform A Syntax Error Check
+        // Inject Compiler.log_relative_errors() call to compiled content beginning
+        let relative_logger_code =
+            "require('application-compiler').log_relative_errors();\n";
+        if (relative_errors)
+            compiled_content = relative_logger_code + compiled_content;
+
+        // Perform compiled content write
+        try {
+            await this._write_file(path + file_name, compiled_content);
+
+            // Perform post processing if relative errors have been requested
+            if (relative_errors) {
+                // Test for syntax errors
                 try {
                     await reference._test_syntax();
                 } catch (syntax_error) {
@@ -468,12 +560,20 @@ class Compiler {
                         false
                     );
 
-                    reference.#methods.logger(
-                        `SYNTAX_ERROR -> ${relative_trace}`
-                    );
+                    relative_trace = relative_trace.split('\\').join('\\\\');
+
+                    // Log Syntax Error
+                    reference.#methods.logger(`SYNTAX_ERROR -> NO_HIERARCHY`);
+
+                    // Overwrite compiled file with trace log
+                    let trace_code = `console.error(\`${relative_trace}\`);
+                    process.exit(1);`;
+                    await this._write_file(path + file_name, trace_code);
                 }
             }
-        );
+        } catch (error) {
+            return this.#methods.error(path, error);
+        }
     }
 
     /**
@@ -489,8 +589,12 @@ class Compiler {
     }
 
     /* Compiler Getters */
-    get watcher_pool() {
+    get pool() {
         return this.#watcher_pool;
+    }
+
+    get watchers() {
+        return this.#watcher_pool.pool;
     }
 
     get chunks() {

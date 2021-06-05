@@ -10,6 +10,7 @@ class WatcherPool {
         watchers: 0,
         handlers: 0,
     };
+
     #methods = {
         error: (path, error) => {},
     };
@@ -168,6 +169,14 @@ class WatcherPool {
     }
 
     /* WatcherPool Getters */
+    get pool() {
+        return this.#watchers;
+    }
+
+    get watcher_delay() {
+        return this.#watcher_delay;
+    }
+
     get watchers() {
         return this.#statistics.watchers;
     }
