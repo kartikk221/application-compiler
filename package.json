@@ -1,6 +1,6 @@
 {
     "name": "application-compiler",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "description": "A Simple Compiler To Merge Multiple Files Into A Single File Application.",
     "main": "index.js",
     "scripts": {
@@ -15,8 +15,7 @@
       "application",
       "compiler",
       "single-file",
-      "include",
-      "require"
+      "include"
     ],
     "author": "kartikk221",
     "license": "MIT",
