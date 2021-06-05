@@ -1,5 +1,12 @@
 # Application Compiler: Single File Applications Re-Imagined
 
+[![NPM version](https://img.shields.io/npm/v/application-compiler.svg?style=flat)](https://www.npmjs.com/package/application-compiler)
+[![NPM downloads](https://img.shields.io/npm/dm/application-compiler.svg?style=flat)](https://www.npmjs.com/package/application-compiler)
+[![Language grade: JavaScript](https://img.shields.io/lgtm/grade/javascript/g/kartikk221/application-compiler.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/kartikk221/application-compiler/context:javascript)
+[![GitHub issues](https://img.shields.io/github/issues/kartikk221/application-compiler)](https://github.com/kartikk221/application-compiler/issues)
+[![GitHub stars](https://img.shields.io/github/stars/kartikk221/application-compiler)](https://github.com/kartikk221/application-compiler/stargazers)
+[![GitHub license](https://img.shields.io/github/license/kartikk221/application-compiler)](https://github.com/kartikk221/application-compiler/blob/master/LICENSE)
+
 ## Motivation
 This package aims to bring an "include" method to Node applications that performs similar to include implementations in other languages such as PHP. Unlike Node's built in module system, this compiler aims to allow for the usage of simple calls such as `include('/routes/api/v1/login.js')` in your code and produces a compiled javascript file with all include calls converted into their respective code simulating a direct include into global context.
 
