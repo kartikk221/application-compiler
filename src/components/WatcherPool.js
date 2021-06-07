@@ -4,8 +4,8 @@ class WatcherPool {
     #id = 0;
     #id_max = Number.MAX_SAFE_INTEGER - 1000;
     #watchers = {};
-    #watcher_delay = 250;
-    #call_delay = 150;
+    #watcher_delay;
+    #call_delay;
     #statistics = {
         watchers: 0,
         handlers: 0,
