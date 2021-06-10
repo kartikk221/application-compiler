@@ -25,6 +25,7 @@ class Compiler {
         write_delay: 250,
         pending: false,
         relative_errors: true,
+        runtime_relative_errors: true,
     };
 
     #methods = {
@@ -145,7 +146,13 @@ class Compiler {
      * @param {Number} options.write_delay
      * @param {Boolean} options.relative_errors
      */
-    write_to({ path, file_name, write_delay, relative_errors }) {
+    write_to({
+        path,
+        file_name,
+        write_delay,
+        relative_errors,
+        runtime_relative_errors,
+    }) {
         // Determine write_to path
         if (typeof path !== 'string')
             throw new Error(
@@ -167,6 +174,10 @@ class Compiler {
         // Set relative_errors if it is a valid boolean type
         if (typeof relative_errors == 'boolean')
             this.#write_to.relative_errors = relative_errors;
+
+        // Set runtime_relative_errors if it is a valid boolean type
+        if (typeof runtime_relative_errors == 'boolean')
+            this.#write_to.runtime_relative_errors = runtime_relative_errors;
     }
 
     /**
@@ -510,6 +521,7 @@ class Compiler {
             pending,
             initial_write,
             relative_errors,
+            runtime_relative_errors,
         } = this.#write_to;
 
         // Check for sufficient delay between last write
@@ -541,7 +553,7 @@ class Compiler {
         // Inject Compiler.log_relative_errors() call to compiled content beginning
         let relative_logger_code =
             "require('application-compiler').log_relative_errors();\n";
-        if (relative_errors)
+        if (relative_errors && runtime_relative_errors)
             compiled_content = relative_logger_code + compiled_content;
 
         // Perform compiled content write
