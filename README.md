@@ -125,10 +125,14 @@ Below is a breakdown of the `Compiler` class generated when creating a applicati
         * **Default**: `compiled_{root_file_name}.js`
       * `write_delay`[`Number`]: Enforces delay between fast file writes in **milliseconds**.
         * **Default**: `250`
-      * `relative_errors`[`Boolean`]: Enables contextually relative Error traces for compile and runtime errors.
+      * `relative_errors`[`Boolean`]: Enables contextually relative Error traces for compile-time/syntax errors.
         * **Default**: `true`
-        * **Note** this will inject some additional code to the beginning of the compiled file.
-        * **Note** Syntax Errors will be written directly into compiled file.
+        * **Note** Errors will be written directly into compiled file.
+      * `runtime_relative_errors`[`Boolean`]: Enables contextually relative Error traces for run-time errors including uncaught promise exceptions.
+        * **Default**: `true`
+        * **Note** This will simply log the Error trace and exit the program.
+        * **Custom Handler**: Use the following code anywhere in your application to handle relative error traces: `require('application-compiler').log_relative_errors((String: error_trace) => { /* Your Code Here... */ })`
+        * **Note** that you must call `process.exit(code)` at the end of your code for any custom handling above to ensure you restart the application.
     * **Note** using this method can allow for fast development due to the automatic compilation.
 * `on_recalibration(Function: handler)`: Triggered when a file content change is detected and code is recompiled.
     * **Handler Example**: `() => {}`
