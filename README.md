@@ -8,7 +8,7 @@
 [![GitHub license](https://img.shields.io/github/license/kartikk221/application-compiler)](https://github.com/kartikk221/application-compiler/blob/master/LICENSE)
 
 ## Motivation
-This package aims to bring an "include" method to Node applications that performs similar to include implementations in other languages such as PHP. Unlike Node's built in module system, this compiler aims to allow for the usage of simple calls such as `include('/routes/api/v1/login.js')` in your code and produces a compiled javascript file with all include calls converted into their respective code simulating a direct include into global context.
+This package aims to bring an "include" method to Node applications that performs similar to include implementations in other languages such as PHP. Unlike Node's built in module system, this compiler aims to allow for the usage of simple calls such as `include('/routes/api/v1/login.js')` in your code and produces a compiled javascript file with all include calls converted into their respective code simulating a direct include into exact call line position.
 
 ## Features
 - Simple-to-use API
